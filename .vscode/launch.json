@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug FS-i6 (J-Link)",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "jlink",
+      "device": "MKL16Z64xxx4",
+      "interface": "swd",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/build/FSI6.elf",
+      "runToEntryPoint": "main",
+      "preLaunchTask": "Build"
+    }
+  ]
+}

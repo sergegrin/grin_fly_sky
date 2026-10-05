@@ -1,0 +1,8 @@
+{
+  "fsi6.jlinkDir": "C:/Program Files (x86)/SEGGER/JLink_V632g",
+  "cortex-debug.JLinkGDBServerPath": "C:/Program Files (x86)/SEGGER/JLink_V632g/JLinkGDBServerCL.exe",
+  "makefile.configureOnOpen": false,
+  "files.associations": {
+    "*.lbm": "cpp"
+  }
+}

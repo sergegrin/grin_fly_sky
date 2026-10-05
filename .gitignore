@@ -1,0 +1,17 @@
+build/
+
+# firmware images and build leftovers outside build/
+*.hex
+*.bin
+*.elf
+*.map
+*.o
+*.d
+*.log
+
+# OS / editor files
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*~

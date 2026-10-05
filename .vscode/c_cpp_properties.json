@@ -1,0 +1,26 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "FS-i6 (arm-none-eabi-gcc)",
+      "compilerPath": "arm-none-eabi-gcc",
+      "compilerArgs": ["-mcpu=cortex-m0plus", "-mthumb", "-fshort-enums", "-funsigned-char"],
+      "intelliSenseMode": "gcc-arm",
+      "cStandard": "gnu99",
+      "cppStandard": "gnu++11",
+      "includePath": [
+        "${workspaceFolder}/CMSIS_4/CMSIS/Include",
+        "${workspaceFolder}/Kinetis_KL/CMSIS/Device/Include",
+        "${workspaceFolder}/Sources"
+      ],
+      "defines": [
+        "MKL16Z64xxx4",
+        "__Kinetis_KL_FAMILY",
+        "__KL1x_SUBFAMILY",
+        "ARM_MATH_CM0PLUS",
+        "FLASH_PLACEMENT=1",
+        "NDEBUG"
+      ]
+    }
+  ]
+}

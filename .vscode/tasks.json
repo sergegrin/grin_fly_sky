@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "make",
+      "args": ["-j8"],
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": { "base": "$gcc", "fileLocation": ["relative", "${workspaceFolder}"] }
+    },
+    {
+      "label": "Clean",
+      "type": "shell",
+      "command": "make",
+      "args": ["clean"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Rebuild",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Clean", "Build"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flash (J-Link)",
+      "type": "process",
+      "command": "${config:fsi6.jlinkDir}/JLink.exe",
+      "args": [
+        "-device", "MKL16Z64xxx4",
+        "-if", "SWD",
+        "-speed", "4000",
+        "-autoconnect", "1",
+        "-CommandFile", "${workspaceFolder}/gcc/flash.jlink"
+      ],
+      "dependsOn": ["Build"],
+      "problemMatcher": []
+    }
+  ]
+}
