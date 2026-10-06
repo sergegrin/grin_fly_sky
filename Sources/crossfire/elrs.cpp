@@ -96,6 +96,7 @@ static FieldProps * fieldPopup = 0;
 static tmr10ms_t fieldTimeout = 0;
 static uint8_t fieldId = 1;
 static uint8_t fieldChunk = 0;
+static uint8_t fieldRetries = 0;
 
 static uint8_t fields_count = 0;
 static uint8_t backButtonId = 2;
@@ -206,6 +207,7 @@ static void reloadAllField()
   fieldDataLen = 0;
   namesBufferOffset = 0;
   valuesBufferOffset = 0;
+  edit = 0;
 }
 
 static FieldProps * getField(const uint8_t line)
@@ -475,9 +477,9 @@ static void parseDeviceInfoMessage(uint8_t* data, uint8_t length)
   {
     newFieldCount = FIELDS_MAX_COUNT - 2;
   }
-  reloadAllField();
   if (newFieldCount != fields_count || newFieldCount == 0)
   {
+    reloadAllField();
     fields_count = newFieldCount;
     allocateFields();
     // hidden: switching devices is not supported
@@ -535,16 +537,20 @@ static void appendFieldData(uint8_t c)
   }
 }
 
-static void parseParameterInfoMessage(uint8_t* data, uint8_t length)
+// returns false when the frame was not used
+static bool parseParameterInfoMessage(uint8_t* data, uint8_t length)
 {
+  // late answers to earlier requests must not disturb the parameter being collected
   if (data[2] != deviceId || data[3] != fieldId || fieldId > fields_count)
   {
-    fieldDataLen = 0;
-    fieldChunk = 0;
-    return;
+    return false;
   }
   if (fieldDataLen == 0)
   {
+    if (fieldChunk != 0)
+    {
+      return false;
+    }
     expectedChunks = -1;
     fieldDataState = 0;
     fieldDataInParens = 0;
@@ -553,7 +559,7 @@ static void parseParameterInfoMessage(uint8_t* data, uint8_t length)
   uint8_t chunks = data[4];
   if (chunks != expectedChunks && expectedChunks != -1)
   {
-    return;
+    return false;
   }
   expectedChunks = chunks - 1;
   for (uint32_t i = 5; i < length; i++)
@@ -563,14 +569,14 @@ static void parseParameterInfoMessage(uint8_t* data, uint8_t length)
   if (chunks > 0)
   {
     fieldChunk = fieldChunk + 1;
-    return;
+    return true;
   }
 
   fieldChunk = 0;
   if (fieldDataLen < 4)
   {
     fieldDataLen = 0;
-    return;
+    return true;
   }
   memset(&fieldData[fieldDataLen], 0, FIELD_DATA_SIZE - fieldDataLen);
   fieldDataLen = 0;
@@ -580,7 +586,8 @@ static void parseParameterInfoMessage(uint8_t* data, uint8_t length)
   uint8_t hidden = fieldData[1] & 0x80;
   if (field->nameLength != 0 && (field->parent != parent || field->type != type))
   {
-    return;
+    field->nameLength = 0;
+    field->valuesLength = 0;
   }
   field->parent = parent;
   field->type = type;
@@ -653,6 +660,7 @@ static void parseParameterInfoMessage(uint8_t* data, uint8_t length)
   {
     fieldTimeout = getTime() + fieldPopup->valuesOffset;
   }
+  return true;
 }
 
 static void parseElrsInfoMessage(uint8_t* data, uint8_t length)
@@ -682,10 +690,13 @@ void runCrossfireTelemetryCallback(uint8_t command = 0, uint8_t* data = 0, uint8
   }
   else if (command == 0x2B)
   {
-    parseParameterInfoMessage(data, length);
-    if (allParamsLoaded < 1)
+    if (parseParameterInfoMessage(data, length))
     {
-      fieldTimeout = 0;
+      fieldRetries = 0;
+      if (allParamsLoaded < 1)
+      {
+        fieldTimeout = 0;
+      }
     }
   }
   else if (command == 0x2E)
@@ -725,6 +736,13 @@ void runCrossfireTelemetryCallback(uint8_t command = 0, uint8_t* data = 0, uint8
   }
   else if (time > fieldTimeout && fields_count != 0 && !edit && allParamsLoaded < 1)
   {
+    if (fieldTimeout != 0 && ++fieldRetries >= 3)
+    {
+      // no progress: collect this parameter again from its first chunk
+      fieldRetries = 0;
+      fieldChunk = 0;
+      fieldDataLen = 0;
+    }
     if (crossfireTelemetryPush4(0x2C, fieldId, fieldChunk))
       fieldTimeout = time + 50;
   }
@@ -773,6 +791,7 @@ static void handleDevicePageEvent(uint8_t event)
     FieldProps * field = getField(lineIndex);
     if (field == 0 || field->nameLength == 0)
     {
+      edit = 0;
       return;
     }
     if (isFieldEditable(field))
@@ -1004,6 +1023,25 @@ static void runPopupPage(uint8_t event)
   }
 }
 
+static void ELRS_start()
+{
+  fieldPopup = 0;
+  pendingWrite = 0;
+  folderAccess = 0;
+  fields_count = 0;
+  fieldsLen = 0;
+  reloadAllField();
+  fieldRetries = 0;
+  lineIndex = 1;
+  pageOffset = 0;
+  deviceIsELRS_TX = 0;
+  elrsFlags = 0;
+  titleShowWarn = 0;
+  devicesRefreshTimeout = 0;
+  fieldTimeout = 0;
+  linkstatTimeout = 0;
+}
+
 static void ELRS_stop()
 {
   menuActive = 0;
@@ -1045,6 +1083,7 @@ void crossfileMenu(MState2 &mstate2, uint8_t event, uint8_t sub, uint8_t subN, u
     if (event == EVT_KEY_FIRST(KEY_MENU))
     {
       killEvents(event); // the release must not reach the new menu as ENTER
+      ELRS_start();
       pushMenu(ELRS_run);
     }
   }

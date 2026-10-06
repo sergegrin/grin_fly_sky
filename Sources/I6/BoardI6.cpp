@@ -820,6 +820,10 @@ void crsf_send_data(uint8_t *buf, uint32_t len)
 
   UART0->C3 &= ~UART_C3_TXDIR_MASK;
   UART0->C2 &= ~(UART_C2_TE_MASK);
+  // an overrun left from a byte that arrived while sending stops the receiver
+  // without raising an interrupt, so clear it before receiving again
+  uart_clear_error();
+  (void)UART0->D;
   UART0->C2 |= UART_C2_RIE_MASK | UART_C2_RE_MASK;
   sei();
 }
