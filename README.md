@@ -104,6 +104,11 @@ Changes made in October 2026 by sergegrin. Each modified source file is marked w
   - long option lists (dual band modules) are shortened while they are received;
   - a parameter write waits for the output buffer instead of being lost.
 
+## Support
+
+If you find this project useful, you can support its development through
+[GitHub Sponsors](https://github.com/sponsors/sergegrin).
+
 ## Credits
 
 This firmware exists thanks to the following projects and their authors:
