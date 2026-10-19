@@ -1,4 +1,5 @@
 build/
+tools/
 
 # firmware images and build leftovers outside build/
 *.hex

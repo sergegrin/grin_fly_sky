@@ -61,17 +61,62 @@ No hardware modification is needed:
 
 ## Building
 
-You need the Arm GNU Toolchain (`arm-none-eabi-gcc`) and GNU make:
+There are no prebuilt firmware files: build the firmware yourself and flash it
+with a J-Link programmer. The build scripts download the compiler themselves, so
+nothing has to be installed beforehand.
 
-    make            # build/FSI6.elf, build/FSI6.hex, build/FSI6.bin
-    make clean
+### 1. Get the source
 
-In VS Code, the tasks Build, Rebuild and Flash (J-Link) are available under
-Terminal → Run Build Task. Set `fsi6.jlinkDir` in the settings to your J-Link
-installation folder. Flashing uses `gcc/flash.jlink`.
+- On GitHub, click **Code → Download ZIP** and unpack it, or run
+  `git clone https://github.com/sergegrin/grin_fly_sky.git`.
+- **Windows:** put the project in a short folder with Latin letters only, for
+  example `C:\fsi6`. With a long folder path (more than about 60 characters) the
+  compiler stops with `bits/c++config.h: No such file or directory`. A ZIP from
+  GitHub often unpacks into a doubled folder such as
+  `grin_fly_sky-main\grin_fly_sky-main`; move it up to a short path.
 
-For how to connect the programmer to the radio, see Kotello's
-[flashing manual](https://github.com/aerror2/erfly6/blob/main/ER9XFlySky%20I6En.pdf).
+### 2. Build
+
+- **Windows:** double-click `build.cmd`.
+- **Linux / macOS:** run `sh build.sh` in the project folder. It needs `make`:
+  `sudo apt install make` on Debian/Ubuntu, `xcode-select --install` on macOS.
+
+The first run downloads the xPack Arm GNU Toolchain 13.2.1 (about 150 MB) into
+the `tools` folder and checks its checksum; later runs reuse it. Each run builds
+from scratch. The firmware ends up in `build/FSI6.hex` (for flashing) and
+`build/FSI6.bin`. On Windows the `build` folder opens when the build is done.
+
+If you already have the Arm GNU Toolchain (`arm-none-eabi-gcc`) and GNU make,
+you can also build with `make` (and `make clean`).
+
+### 3. Flash
+
+You need a SEGGER J-Link (a clone works) and
+[J-Link Software](https://www.segger.com/downloads/jlink/). Connect it to the
+SWD pads of the radio (SWDIO, SWCLK, GND) and power the radio from its
+batteries. Kotello's
+[flashing manual](https://github.com/aerror2/erfly6/blob/main/ER9XFlySky%20I6En.pdf)
+shows where the pads are.
+
+Open a command prompt in the project folder and run J-Link Commander:
+
+    JLink.exe -device MKL16Z64xxx4 -if SWD -speed 4000 -autoconnect 1
+
+then type:
+
+    loadfile build/FSI6.hex
+    r
+    g
+    exit
+
+The radio restarts with the new firmware.
+
+- On the first flash over the stock FlySky firmware, J-Link may report that the
+  chip is secured and offer to unlock it. Unlocking erases the stock firmware
+  completely, and it cannot be read back first.
+- Model settings from the stock firmware are not carried over.
+- In VS Code, the task **Flash (J-Link)** (Terminal → Run Build Task) does the
+  same; set `fsi6.jlinkDir` in the settings to your J-Link installation folder.
 
 ## Changes from aerror2/erfly6
 
