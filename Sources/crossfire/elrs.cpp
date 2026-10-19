@@ -859,6 +859,30 @@ static uint8_t utoa8(char * s, uint16_t value)
   return len;
 }
 
+// number needs room for 5 characters
+static uint8_t getValueText(FieldProps * field, const char ** text, char * number)
+{
+  *text = (const char *)&valuesBuffer[field->valuesOffset];
+  uint8_t len = field->valuesLength;
+  if (field->type == TYPE_SELECT)
+  {
+    len = getOption(field, field->value, text);
+  }
+  else if (field->type == TYPE_UINT8 || field->type == TYPE_INT8)
+  {
+    int16_t value = (field->type == TYPE_INT8) ? (int8_t)field->value : field->value;
+    len = 0;
+    if (value < 0)
+    {
+      number[len++] = '-';
+      value = -value;
+    }
+    len += utoa8(&number[len], value);
+    *text = number;
+  }
+  return len;
+}
+
 static void drawTitle()
 {
   tmr10ms_t time = getTime();
@@ -893,36 +917,26 @@ static void drawTitle()
   }
 }
 
-// returns the value's x; a wide value moves left over the name
-static uint8_t drawFieldValue(FieldProps * field, uint8_t y, uint8_t attr)
+static uint8_t drawValueText(const char * text, uint8_t len, const char * unit, uint8_t unitLen,
+                             uint8_t y, uint8_t attr, uint8_t minX)
 {
-  const char * text = (const char *)&valuesBuffer[field->valuesOffset];
-  uint8_t len = field->valuesLength;
-  char number[5];
-  if (field->type == TYPE_SELECT)
-  {
-    len = getOption(field, field->value, &text);
-  }
-  else if (field->type == TYPE_UINT8 || field->type == TYPE_INT8)
-  {
-    int16_t value = (field->type == TYPE_INT8) ? (int8_t)field->value : field->value;
-    len = 0;
-    if (value < 0)
-    {
-      number[len++] = '-';
-      value = -value;
-    }
-    len += utoa8(&number[len], value);
-    text = number;
-  }
   uint8_t start = COL2;
   if (len * FW > DISPLAY_W - COL2)
   {
-    start = (len * FW > DISPLAY_W - 4*FW) ? 4*FW : DISPLAY_W - len * FW;
+    start = (len * FW > DISPLAY_W - minX) ? minX : DISPLAY_W - len * FW;
   }
   uint8_t x = drawClipped(start, y, text, len, attr);
-  drawClipped(x, y, (const char *)&valuesBuffer[field->valuesOffset + field->valuesLength], field->unitLength, 0);
+  drawClipped(x, y, unit, unitLen, 0);
   return start;
+}
+
+static uint8_t drawFieldValue(FieldProps * field, uint8_t y, uint8_t attr)
+{
+  char number[5];
+  const char * text;
+  uint8_t len = getValueText(field, &text, number);
+  return drawValueText(text, len, (const char *)&valuesBuffer[field->valuesOffset + field->valuesLength],
+                       field->unitLength, y, attr, 4*FW);
 }
 
 static void runDevicePage(uint8_t event)
@@ -947,11 +961,35 @@ static void runDevicePage(uint8_t event)
     uint8_t ly = y*FH+TEXT_Y_OFFSET;
     uint8_t attr = (lineIndex == (pageOffset+y)) ? (edit ? BLINK : INVERS) : 0;
     const char * name = (const char *)&namesBuffer[field->nameOffset];
-    if (field->type == TYPE_FOLDER || field->type == TYPE_COMMAND)
+    if (field->type == TYPE_FOLDER)
     {
-      uint8_t x = drawClipped(0, ly, (field->type == TYPE_FOLDER) ? ">" : "[", 1, attr);
+      uint8_t labelLen = field->nameLength;
+      const char * state = name;
+      uint8_t stateLen = 0;
+      if (name[labelLen - 1] == ')')
+      {
+        for (uint8_t i = 1; i + 1 < field->nameLength; i++)
+        {
+          if (name[i] == '(')
+          {
+            state = &name[i + 1];
+            stateLen = field->nameLength - i - 2;
+            labelLen = i;
+            break;
+          }
+        }
+      }
+      while (labelLen > 1 && name[labelLen - 1] == ' ') labelLen--;
+      while (stateLen && state[stateLen - 1] == ' ') stateLen--;
+      uint8_t x = drawClipped(0, ly, ">", 1, attr);
+      x = drawClipped(x, ly, name, labelLen, attr);
+      drawValueText(state, stateLen, 0, 0, ly, 0, x + FW);
+    }
+    else if (field->type == TYPE_COMMAND)
+    {
+      uint8_t x = drawClipped(0, ly, "[", 1, attr);
       x = drawClipped(x, ly, name, field->nameLength, attr);
-      if (field->type == TYPE_COMMAND) drawClipped(x, ly, "]", 1, attr);
+      drawClipped(x, ly, "]", 1, attr);
     }
     else if (field->type == TYPE_BACK)
     {
